@@ -28,11 +28,15 @@ app.secret_key = 'your_secret_key'
 
 @app.route('/')
 def home():
-    return 'Welcome to Flask OAuth 2.0 SSO with Google | <a href="http://localhost:8000/login">Log In</a>'
+    if request.args:
+        if check_token(request.args.get('token')):
+            return 'Redirecting to Microservice Page'
+    else:
+        return 'Please authorize first | <a href="http://localhost:8000/google-auth">Log In</a>'
 
 
-@app.route('/login')
-def login():
+@app.route('/google-auth')
+def google_auth():
     authorization_url = f"{GOOGLE_AUTH_URL}?client_id={GOOGLE_CLIENT_ID}&redirect_uri={GOOGLE_REDIRECT_URI}&scope=openid%20email&response_type=code"
     return redirect(authorization_url)
 
@@ -41,37 +45,29 @@ def login():
 def google_sso_callback():
     code = request.args.get('code')
     print(f"code: {code}")
+    if code:
+        token_url_params = {
+            'code': code,
+            'client_id': GOOGLE_CLIENT_ID,
+            'client_secret': GOOGLE_CLIENT_SECRET,
+            'redirect_uri': GOOGLE_REDIRECT_URI,
+            'grant_type': 'authorization_code',
+        }
+        token_response = requests.post(GOOGLE_TOKEN_URL, data=token_url_params)
+        token_data = token_response.json()
+        access_token = token_data.get('access_token')
 
-    token_url_params = {
-        'code': code,
-        'client_id': GOOGLE_CLIENT_ID,
-        'client_secret': GOOGLE_CLIENT_SECRET,
-        'redirect_uri': GOOGLE_REDIRECT_URI,
-        'grant_type': 'authorization_code',
-    }
-    token_response = requests.post(GOOGLE_TOKEN_URL, data=token_url_params)
-    token_data = token_response.json()
-    access_token = token_data.get('access_token')
-
-    user_info_response = requests.get(GOOGLE_USER_INFO_URL, headers={'Authorization': f'Bearer {access_token}'})
-    user_info = user_info_response.json()
-
-    session['user_info'] = user_info
-
-    return redirect(url_for('profile'))
-
-
-@app.route('/profile')
-def profile():
-    user_info = session.get('user_info')
-    print(user_info)
-    if user_info:
-        # return f"Welcome! Your email is {user_info['email']}."
-        return create_access_token(
+        user_info_response = requests.get(GOOGLE_USER_INFO_URL, headers={'Authorization': f'Bearer {access_token}'})
+        user_info = user_info_response.json()
+        print(user_info)
+        session['user_info'] = user_info
+        jwt_token = create_access_token(
             data={"sub": user_info['email']},
             expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-            )
-    return "User not authenticated."
+        )
+        return f"Google user info: {user_info} JWT Token: {jwt_token} <a href='http://localhost:8000/'>Home</a>"
+    else:
+        return "User not authenticated."
     
 
 def create_access_token(data: dict, expires_delta = None):
@@ -84,8 +80,7 @@ def create_access_token(data: dict, expires_delta = None):
     token = jwt.encode(payload=to_encode, 
                        key=SECRET_KEY, 
                        algorithm=ALGORITHM)
-    check_token(token)
-    return to_encode
+    return token
 
 def check_token(token):
     try:
@@ -96,13 +91,16 @@ def check_token(token):
 
         # The decoded_payload now contains the claims from the token
         print(f"Decoded token = {decode_payload}")
+        return decode_payload
     except jwt.ExpiredSignatureError:
         # Handle token expiration
         print("Token has expired")
+        return None
     except jwt.exceptions.PyJWTError as e:
         # Handle other JWT errors
         print(e)
         print("Invalid token")
+        return None
 
 
 if __name__ == '__main__':
