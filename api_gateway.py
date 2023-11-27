@@ -6,7 +6,8 @@ import jwt
 
 app = Flask(__name__)
 
-SERVER_IP = "35.232.201.57"
+SERVER_IP = "app.35.232.201.57.nip.io"
+# SERVER_IP = "127.0.0.1"
 
 # Google console settings
 GOOGLE_CLIENT_ID = "848195831750-7mbad191l9mtmh6op61epg30fa6gg4fb.apps.googleusercontent.com"
