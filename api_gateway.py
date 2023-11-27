@@ -6,10 +6,12 @@ import jwt
 
 app = Flask(__name__)
 
+SERVER_IP = "35.232.201.57"
+
 # Google console settings
 GOOGLE_CLIENT_ID = "848195831750-7mbad191l9mtmh6op61epg30fa6gg4fb.apps.googleusercontent.com"
 GOOGLE_CLIENT_SECRET = "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"
-GOOGLE_REDIRECT_URI = "http://localhost:8000/google-sso-callback"  # align with the redirect_uri in Google Console
+GOOGLE_REDIRECT_URI = f"http://{SERVER_IP}:8000/google-sso-callback"  # align with the redirect_uri in Google Console
 
 # Google OAuth 2.0
 GOOGLE_AUTH_URL = 'https://accounts.google.com/o/oauth2/auth'
@@ -32,7 +34,7 @@ def home():
         if check_token(request.args.get('token')):
             return 'Redirecting to Microservice Page'
     else:
-        return 'Please authorize first | <a href="http://localhost:8000/google-auth">Log In</a>'
+        return f'Please authorize first | <a href="http://{SERVER_IP}:8000/google-auth">Log In</a>'
 
 
 @app.route('/google-auth')
@@ -65,7 +67,7 @@ def google_sso_callback():
             data={"sub": user_info['email']},
             expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
         )
-        return f"Google user info: {user_info} JWT Token: {jwt_token} <a href='http://localhost:8000/'>Home</a>"
+        return f"Google user info: {user_info} JWT Token: {jwt_token} <a href='http://{SERVER_IP}:8000/'>Home</a>"
     else:
         return "User not authenticated."
     
